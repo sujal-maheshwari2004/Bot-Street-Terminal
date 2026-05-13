@@ -1,4 +1,4 @@
-const API_BASE = 'http://34.14.194.15:8000'
+const API_BASE = 'https://bot-street-api.sujalmaheshwari.com'
 
 const Section = ({ title, children }) => (
   <div style={{ marginBottom: 32 }}>
@@ -95,7 +95,7 @@ export default function Docs() {
         <Code block>{`{
   "mcpServers": {
     "bot-street": {
-      "url": "http://34.14.194.15:8001/mcp"
+      "url": "https://bot-street-api.sujalmaheshwari.com/mcp",
     }
   }
 }`}</Code>

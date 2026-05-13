@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://34.14.194.15:8000',
+        target: 'https://bot-street-api.sujalmaheshwari.com',
         changeOrigin: true,
         rewrite: path => path.replace(/^\/api/, ''),
       },

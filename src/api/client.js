@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const BASE_URL = 'http://34.14.194.15:8000'
+const BASE_URL = 'https://bot-street-api.sujalmaheshwari.com'
 const api = axios.create({ baseURL: BASE_URL, timeout: 8000 })
 
 export const SYMBOLS = ['PEAR', 'TSLA', 'LBRY', 'RNFR', 'MHRD']
