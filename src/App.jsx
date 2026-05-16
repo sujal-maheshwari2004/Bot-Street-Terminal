@@ -8,9 +8,9 @@ import SentimentGauge from './components/SentimentGauge'
 import Leaderboard from './components/Leaderboard'
 import OrderPanel from './components/OrderPanel'
 import MarketStatus from './components/MarketStatus'
+import TradeFeed from './components/TradeFeed'
 import Docs from './pages/Docs'
 import { SYMBOLS } from './api/client'
-import TradeFeed from './components/TradeFeed'
 
 export default function App() {
   const [symbol, setSymbol] = useState('PEAR')
@@ -27,32 +27,22 @@ export default function App() {
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg-void)' }}>
       <div className="scanlines" />
-
       <Sidebar page={page} onPage={setPage} />
 
-      {/* Main content — minHeight:0 prevents flex children overflowing 100vh */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0, minWidth: 0 }}>
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
         {/* Header */}
         <header style={{
-          height: 'var(--header-h)',
-          background: 'var(--bg-panel-2)',
-          borderBottom: '1px solid var(--border)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0 20px',
-          flexShrink: 0,
-          gap: 16,
+          height: 'var(--header-h)', flexShrink: 0,
+          background: 'var(--bg-panel-2)', borderBottom: '1px solid var(--border)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '0 20px', gap: 16,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{
-              width: 28, height: 28,
-              background: 'var(--green-faint)',
-              border: '1px solid var(--green)',
-              borderRadius: 'var(--radius-sm)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0,
+              width: 28, height: 28, flexShrink: 0,
+              background: 'var(--green-faint)', border: '1px solid var(--green)',
+              borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                 <path d="M2 12 L7 2 L12 12 M4 9 h6" stroke="var(--green)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -77,14 +67,9 @@ export default function App() {
                     background: active ? 'var(--bg-active)' : 'transparent',
                     color: active ? 'var(--green)' : 'var(--text-muted)',
                     border: active ? '1px solid var(--border-bright)' : '1px solid transparent',
-                    borderRadius: 'var(--radius-sm)',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 10,
-                    fontWeight: active ? 600 : 400,
-                    padding: '4px 14px',
-                    cursor: 'pointer',
-                    letterSpacing: '0.1em',
-                    transition: 'all 0.15s',
+                    borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-mono)',
+                    fontSize: 10, fontWeight: active ? 600 : 400, padding: '4px 14px',
+                    cursor: 'pointer', letterSpacing: '0.1em', transition: 'all 0.15s',
                     boxShadow: active ? '0 0 10px var(--green-glow)' : 'none',
                   }}>
                     {s}
@@ -102,45 +87,38 @@ export default function App() {
           </div>
         </header>
 
+        {/* Ticker */}
         <Ticker symbol={symbol} onSelect={setSymbol} />
 
+        {/* Page content */}
         {page === 'docs' ? <Docs /> : (
-          /* minHeight:0 is the key fix — grid inside a flex column won't shrink
-             below its content size without it, causing overflow below the viewport */
           <div style={{
-            flex: 1,
-            height: 0,
-            minWidth: 0,
-            display: 'grid',
+            flex: 1, minHeight: 0, minWidth: 0, overflow: 'hidden',
+            display: 'grid', background: 'var(--bg-void)',
             gridTemplateColumns: '260px 1fr 280px',
-            gridTemplateRows: '1fr 180px 120px',
-            gap: 3,
-            padding: 3,
-            overflow: 'hidden',
-            background: 'var(--bg-void)',
+            gridTemplateRows: '1fr 180px 110px',
+            gap: 3, padding: 3,
           }}>
-            {/* Col 1 */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, overflow: 'hidden', minHeight: 0 }}>
+            {/* Col 1 row 1+2: OrderBook + Sentiment */}
+            <div style={{ gridRow: '1 / 3', display: 'flex', flexDirection: 'column', gap: 3, minHeight: 0 }}>
               <div style={{ flex: 3, minHeight: 0 }}><OrderBook symbol={symbol} /></div>
               <div style={{ flex: 2, minHeight: 0 }}><SentimentGauge symbol={symbol} /></div>
             </div>
 
-            {/* Col 2 */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, overflow: 'hidden', minHeight: 0 }}>
-              <div style={{ flex: 1, minHeight: 0 }}><CandleChart symbol={symbol} /></div>
-              <div style={{ flexShrink: 0 }}><Indicators symbol={symbol} /></div>
-            </div>
+            {/* Col 2 row 1: Chart */}
+            <div style={{ minHeight: 0 }}><CandleChart symbol={symbol} /></div>
 
-            {/* Col 3 */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, overflow: 'hidden', minHeight: 0 }}>
+            {/* Col 3 row 1+2: Leaderboard + OrderPanel */}
+            <div style={{ gridRow: '1 / 3', display: 'flex', flexDirection: 'column', gap: 3, minHeight: 0 }}>
               <div style={{ flex: 1, minHeight: 0 }}><Leaderboard /></div>
               <div style={{ flexShrink: 0 }}><OrderPanel symbol={symbol} /></div>
             </div>
 
-            {/* Row 3 — Trade feed spanning all columns */}
-            <div style={{ gridColumn: '1 / -1', minHeight: 0 }}>
-              <TradeFeed />
-            </div>
+            {/* Col 2 row 2: Indicators */}
+            <div style={{ minHeight: 0 }}><Indicators symbol={symbol} /></div>
+
+            {/* Row 3: Trade feed full width */}
+            <div style={{ gridColumn: '1 / -1', minHeight: 0 }}><TradeFeed /></div>
           </div>
         )}
       </div>
