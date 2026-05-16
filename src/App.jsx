@@ -31,7 +31,7 @@ export default function App() {
       <Sidebar page={page} onPage={setPage} />
 
       {/* Main content */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
 
         {/* Header */}
         <header style={{

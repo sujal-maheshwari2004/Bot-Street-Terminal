@@ -101,7 +101,7 @@ export default function CandleChart({ symbol }) {
   const dirColor = dir === 'up' ? 'var(--green)' : dir === 'down' ? 'var(--red)' : 'var(--amber)'
 
   return (
-    <div className="panel" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div className="panel" style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       <div className="panel-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span className="panel-title">{symbol} / USD</span>
@@ -136,7 +136,7 @@ export default function CandleChart({ symbol }) {
           </div>
         </div>
       ) : (
-        <div style={{ flex: 1, padding: '10px 0 6px' }}>
+        <div style={{ flex: 1, padding: '10px 0 6px', minHeight: 0, minWidth: 0 }}>
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={chartData} margin={{ left: 4, right: 56, top: 4, bottom: 4 }}>
               <XAxis dataKey="i" hide />
