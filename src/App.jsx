@@ -108,7 +108,7 @@ export default function App() {
              below its content size without it, causing overflow below the viewport */
           <div style={{
             flex: 1,
-            minHeight: 0,
+            height: 0,
             minWidth: 0,
             display: 'grid',
             gridTemplateColumns: '260px 1fr 280px',

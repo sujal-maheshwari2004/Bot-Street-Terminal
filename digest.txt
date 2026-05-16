@@ -1,0 +1,2097 @@
+Directory structure:
+└── Bot-Street-Terminal/
+    ├── README.md
+    ├── Dockerfile
+    ├── eslint.config.js
+    ├── index.html
+    ├── nginx.conf
+    ├── package.json
+    ├── setup.ps1
+    ├── vite.config.js
+    └── src/
+        ├── App.jsx
+        ├── main.jsx
+        ├── theme.css
+        ├── api/
+        │   └── client.js
+        ├── components/
+        │   ├── CandleChart.jsx
+        │   ├── Indicators.jsx
+        │   ├── Leaderboard.jsx
+        │   ├── MarketStatus.jsx
+        │   ├── OrderBook.jsx
+        │   ├── OrderPanel.jsx
+        │   ├── SentimentGauge.jsx
+        │   ├── Sidebar.jsx
+        │   └── Ticker.jsx
+        ├── hooks/
+        │   └── usePolling.js
+        └── pages/
+            └── Docs.jsx
+
+================================================
+FILE: README.md
+================================================
+# React + Vite
+
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+
+Currently, two official plugins are available:
+
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+
+## React Compiler
+
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+
+## Expanding the ESLint configuration
+
+If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+
+
+================================================
+FILE: Dockerfile
+================================================
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+
+FROM nginx:alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 8080
+CMD ["nginx", "-g", "daemon off;"]
+
+
+================================================
+FILE: eslint.config.js
+================================================
+import js from '@eslint/js'
+import globals from 'globals'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import { defineConfig, globalIgnores } from 'eslint/config'
+
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{js,jsx}'],
+    extends: [
+      js.configs.recommended,
+      reactHooks.configs.flat.recommended,
+      reactRefresh.configs.vite,
+    ],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.browser,
+      parserOptions: {
+        ecmaVersion: 'latest',
+        ecmaFeatures: { jsx: true },
+        sourceType: 'module',
+      },
+    },
+    rules: {
+      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+    },
+  },
+])
+
+
+
+================================================
+FILE: index.html
+================================================
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BOT STREET TERMINAL</title>
+    <meta name="description" content="The world's least regulated market." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+
+
+================================================
+FILE: nginx.conf
+================================================
+server {
+    listen 8080;
+    root /usr/share/nginx/html;
+    index index.html;
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+
+
+================================================
+FILE: package.json
+================================================
+{
+  "name": "bot-street-terminal",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "axios": "^1.13.6",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "recharts": "^3.8.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.4.0",
+    "vite": "^8.0.1"
+  }
+}
+
+
+
+================================================
+FILE: setup.ps1
+================================================
+# Run from the bot-street-terminal folder
+
+$PROJECT = "bot-street"
+$REGION  = "us-central1"
+$SERVICE = "bot-street-terminal"
+$IMAGE   = "$REGION-docker.pkg.dev/$PROJECT/bot-street/frontend:v3"
+
+# Build and push
+gcloud auth configure-docker "$REGION-docker.pkg.dev"
+docker build -t $IMAGE .
+docker push $IMAGE
+
+# Deploy to Cloud Run
+gcloud run deploy $SERVICE `
+  --image $IMAGE `
+  --platform managed `
+  --region $REGION `
+  --allow-unauthenticated `
+  --port 8080 `
+  --project $PROJECT
+
+Write-Host ""
+Write-Host "Frontend deployed!" -ForegroundColor Green
+
+
+================================================
+FILE: vite.config.js
+================================================
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    proxy: {
+      '/api': {
+        target: 'https://bot-street-api.sujalmaheshwari.com',
+        changeOrigin: true,
+        rewrite: path => path.replace(/^\/api/, ''),
+      },
+    },
+  },
+})
+
+
+================================================
+FILE: src/App.jsx
+================================================
+import { useState, useEffect } from 'react'
+import Sidebar from './components/Sidebar'
+import Ticker from './components/Ticker'
+import OrderBook from './components/OrderBook'
+import CandleChart from './components/CandleChart'
+import Indicators from './components/Indicators'
+import SentimentGauge from './components/SentimentGauge'
+import Leaderboard from './components/Leaderboard'
+import OrderPanel from './components/OrderPanel'
+import MarketStatus from './components/MarketStatus'
+import Docs from './pages/Docs'
+import { SYMBOLS } from './api/client'
+
+export default function App() {
+  const [symbol, setSymbol] = useState('PEAR')
+  const [page, setPage] = useState('terminal')
+  const [clock, setClock] = useState(new Date())
+
+  useEffect(() => {
+    const t = setInterval(() => setClock(new Date()), 1000)
+    return () => clearInterval(t)
+  }, [])
+
+  const utc = clock.toUTCString().slice(0, 25).toUpperCase()
+
+  return (
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg-void)' }}>
+      <div className="scanlines" />
+
+      <Sidebar page={page} onPage={setPage} />
+
+      {/* Main content â€” minHeight:0 prevents flex children overflowing 100vh */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0, minWidth: 0 }}>
+
+        {/* Header */}
+        <header style={{
+          height: 'var(--header-h)',
+          background: 'var(--bg-panel-2)',
+          borderBottom: '1px solid var(--border)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 20px',
+          flexShrink: 0,
+          gap: 16,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 28, height: 28,
+              background: 'var(--green-faint)',
+              border: '1px solid var(--green)',
+              borderRadius: 'var(--radius-sm)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M2 12 L7 2 L12 12 M4 9 h6" stroke="var(--green)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 11, color: 'var(--green)', letterSpacing: '0.2em' }}>
+                BOT STREET<span className="cursor" />
+              </div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--text-muted)', letterSpacing: '0.12em' }}>
+                TERMINAL v0.1.0
+              </div>
+            </div>
+          </div>
+
+          {page === 'terminal' && (
+            <div style={{ display: 'flex', gap: 2, flex: 1, justifyContent: 'center' }}>
+              {SYMBOLS.map(s => {
+                const active = s === symbol
+                return (
+                  <button key={s} onClick={() => setSymbol(s)} style={{
+                    background: active ? 'var(--bg-active)' : 'transparent',
+                    color: active ? 'var(--green)' : 'var(--text-muted)',
+                    border: active ? '1px solid var(--border-bright)' : '1px solid transparent',
+                    borderRadius: 'var(--radius-sm)',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 10,
+                    fontWeight: active ? 600 : 400,
+                    padding: '4px 14px',
+                    cursor: 'pointer',
+                    letterSpacing: '0.1em',
+                    transition: 'all 0.15s',
+                    boxShadow: active ? '0 0 10px var(--green-glow)' : 'none',
+                  }}>
+                    {s}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>
+              {utc} UTC
+            </div>
+            <MarketStatus />
+          </div>
+        </header>
+
+        <Ticker symbol={symbol} onSelect={setSymbol} />
+
+        {page === 'docs' ? <Docs /> : (
+          /* minHeight:0 is the key fix â€” grid inside a flex column won't shrink
+             below its content size without it, causing overflow below the viewport */
+          <div style={{
+            flex: 1,
+            minHeight: 0,
+            minWidth: 0,
+            display: 'grid',
+            gridTemplateColumns: '260px 1fr 280px',
+            gridTemplateRows: '1fr 180px',
+            gap: 3,
+            padding: 3,
+            overflow: 'hidden',
+            background: 'var(--bg-void)',
+          }}>
+            {/* Col 1 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, overflow: 'hidden', minHeight: 0 }}>
+              <div style={{ flex: 3, minHeight: 0 }}><OrderBook symbol={symbol} /></div>
+              <div style={{ flex: 2, minHeight: 0 }}><SentimentGauge symbol={symbol} /></div>
+            </div>
+
+            {/* Col 2 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, overflow: 'hidden', minHeight: 0 }}>
+              <div style={{ flex: 1, minHeight: 0 }}><CandleChart symbol={symbol} /></div>
+              <div style={{ flexShrink: 0 }}><Indicators symbol={symbol} /></div>
+            </div>
+
+            {/* Col 3 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, overflow: 'hidden', minHeight: 0 }}>
+              <div style={{ flex: 1, minHeight: 0 }}><Leaderboard /></div>
+              <div style={{ flexShrink: 0 }}><OrderPanel symbol={symbol} /></div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+
+================================================
+FILE: src/main.jsx
+================================================
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './theme.css'
+import App from './App.jsx'
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <App />
+  </StrictMode>
+)
+
+
+================================================
+FILE: src/theme.css
+================================================
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap');
+
+:root {
+  /* Base surfaces */
+  --bg-void:      #030508;
+  --bg-base:      #070b0f;
+  --bg-panel:     #0b1018;
+  --bg-panel-2:   #0f1520;
+  --bg-panel-3:   #131c28;
+  --bg-hover:     #192232;
+  --bg-active:    #1e2a3d;
+
+  /* Borders */
+  --border:       #1a2535;
+  --border-2:     #243348;
+  --border-bright:#2e4060;
+
+  /* Phosphor green â€” primary accent */
+  --green:        #00e676;
+  --green-dim:    #00c853;
+  --green-glow:   rgba(0,230,118,0.12);
+  --green-faint:  rgba(0,230,118,0.06);
+  --green-muted:  #003d1f;
+
+  /* Amber â€” secondary accent */
+  --amber:        #ffb300;
+  --amber-dim:    #ff8f00;
+  --amber-faint:  rgba(255,179,0,0.06);
+
+  /* Red â€” danger */
+  --red:          #ff3d3d;
+  --red-dim:      #c62828;
+  --red-faint:    rgba(255,61,61,0.08);
+
+  /* Cyan â€” info */
+  --cyan:         #00bcd4;
+  --cyan-dim:     #0097a7;
+  --cyan-faint:   rgba(0,188,212,0.08);
+
+  /* Text */
+  --text-primary:   #e8edf5;
+  --text-secondary: #7a8fa8;
+  --text-muted:     #3d5068;
+  --text-ghost:     #243347;
+
+  /* Typography */
+  --font-ui:   'Space Grotesk', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Layout */
+  --sidebar-w:   56px;
+  --header-h:    48px;
+  --ticker-h:    32px;
+  --radius-sm:   4px;
+  --radius-md:   8px;
+  --radius-lg:   12px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #root {
+  height: 100%;
+  background: var(--bg-void);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-bright); }
+
+/* Utility classes */
+.up   { color: var(--green); }
+.down { color: var(--red); }
+.flat { color: var(--amber); }
+.muted { color: var(--text-muted); }
+.secondary { color: var(--text-secondary); }
+
+/* Panel base */
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  position: relative;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  height: 34px;
+  background: var(--bg-panel-2);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.panel-title {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.panel-meta {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-ghost);
+}
+
+/* Status dot */
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.dot.live  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.dot.halt  { background: var(--red);   box-shadow: 0 0 6px var(--red); }
+.dot.idle  { background: var(--text-muted); }
+
+/* Blinking cursor */
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+.cursor::after {
+  content: 'â–‹';
+  color: var(--green);
+  animation: blink 1.1s step-end infinite;
+  margin-left: 1px;
+}
+
+/* Scanline overlay */
+.scanlines {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 2px,
+    rgba(0,0,0,0.04) 2px,
+    rgba(0,0,0,0.04) 3px
+  );
+  z-index: 9999;
+}
+
+/* Green accent line */
+.accent-bar {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--green), transparent);
+  opacity: 0.3;
+}
+
+/* Fade edge on scroll containers */
+.fade-edge {
+  mask-image: linear-gradient(to bottom, transparent 0, black 16px, black calc(100% - 16px), transparent 100%);
+}
+
+/* Number formatting */
+.mono { font-family: var(--font-mono); }
+
+/* Pill badge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+}
+.badge.up   { background: var(--green-muted); color: var(--green); }
+.badge.down { background: var(--red-faint);   color: var(--red);   border: 1px solid rgba(255,61,61,0.2); }
+.badge.flat { background: var(--amber-faint); color: var(--amber); border: 1px solid rgba(255,179,0,0.2); }
+
+/* Skeleton loading pulse */
+@keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:0.8} }
+.skeleton {
+  background: var(--bg-panel-3);
+  border-radius: var(--radius-sm);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+/* Chart crosshair cursor */
+.recharts-wrapper { cursor: crosshair !important; }
+
+
+================================================
+FILE: src/api/client.js
+================================================
+import axios from 'axios'
+
+const BASE_URL = 'https://bot-street-api.sujalmaheshwari.com'
+const api = axios.create({ baseURL: BASE_URL, timeout: 8000 })
+
+export const SYMBOLS = ['PEAR', 'TSLA', 'LBRY', 'RNFR', 'MHRD']
+
+// Market
+export const getAllPrices  = ()           => api.get('/market/all/prices').then(r => r.data)
+export const getPrice      = (symbol)     => api.get(`/market/${symbol}/price`).then(r => r.data)
+export const getOrderBook  = (symbol, n=10) => api.get(`/market/${symbol}/orderbook?levels=${n}`).then(r => r.data)
+export const getCandles    = (symbol, n=30) => api.get(`/market/${symbol}/candles?n=${n}`).then(r => r.data)
+export const getSentiment  = (symbol)     => api.get(`/market/${symbol}/sentiment`).then(r => r.data)
+
+// System
+export const getHealth     = ()           => api.get('/system/health').then(r => r.data)
+export const getStatus     = ()           => api.get('/system/status').then(r => r.data)
+export const getLeaderboard= ()           => api.get('/system/leaderboard').then(r => r.data)
+
+// Portfolio
+export const getPortfolio  = (clientId)  => api.get(`/portfolio/${clientId}`).then(r => r.data)
+
+// Orders
+export const placeOrder = (order) => api.post('/orders', order).then(r => r.data)
+
+
+================================================
+FILE: src/components/CandleChart.jsx
+================================================
+import { usePolling } from '../hooks/usePolling'
+import { getCandles } from '../api/client'
+import { useRef, useEffect, useState } from 'react'
+import {
+  ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, ReferenceLine
+} from 'recharts'
+
+const CustomTooltip = ({ active, payload }) => {
+  if (!active || !payload?.length) return null
+  const d = payload[0]?.payload
+  if (!d) return null
+  const bull = d.close >= d.open
+  const change = ((d.close - d.open) / d.open * 100).toFixed(2)
+  return (
+    <div style={{
+      background: 'var(--bg-panel-2)', border: '1px solid var(--border-bright)',
+      padding: '10px 14px', fontFamily: 'var(--font-mono)', fontSize: 10,
+      borderRadius: 'var(--radius-md)', boxShadow: '0 8px 24px rgba(0,0,0,0.5)', minWidth: 140,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid var(--border)' }}>
+        <span style={{ color: bull ? 'var(--green)' : 'var(--red)', fontSize: 9 }}>{bull ? 'â–²' : 'â–¼'}</span>
+        <span style={{ color: 'var(--text-secondary)', fontSize: 9 }}>{d.symbol}</span>
+        <span style={{ color: bull ? 'var(--green)' : 'var(--red)', marginLeft: 'auto' }}>{bull ? '+' : ''}{change}%</span>
+      </div>
+      {[['OPEN', d.open], ['HIGH', d.high], ['LOW', d.low], ['CLOSE', d.close]].map(([k, v]) => (
+        <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, marginBottom: 2 }}>
+          <span style={{ color: 'var(--text-muted)' }}>{k}</span>
+          <span style={{ color: 'var(--text-primary)' }}>${v?.toFixed(2)}</span>
+        </div>
+      ))}
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, marginTop: 6, paddingTop: 6, borderTop: '1px solid var(--border)' }}>
+        <span style={{ color: 'var(--text-muted)' }}>VOL</span>
+        <span style={{ color: 'var(--cyan)' }}>{d.volume?.toLocaleString()}</span>
+      </div>
+    </div>
+  )
+}
+
+function WickShape({ x, y, width, height, payload }) {
+  if (!payload) return null
+  return <line x1={x + width / 2} y1={y} x2={x + width / 2} y2={y + height} stroke={payload.bullish ? 'var(--green)' : 'var(--red)'} strokeWidth={1} opacity={0.5} />
+}
+
+function BodyShape({ x, y, width, height, payload }) {
+  if (!payload) return null
+  const color = payload.bullish ? 'var(--green)' : 'var(--red)'
+  const fill  = payload.bullish ? 'rgba(0,230,118,0.18)' : 'rgba(255,61,61,0.18)'
+  return <rect x={x + 1} y={y} width={Math.max(width - 2, 1)} height={Math.max(height, 1)} fill={fill} stroke={color} strokeWidth={1} rx={1} />
+}
+
+// Measures its container and returns [width, height] in pixels
+function useSize(ref) {
+  const [size, setSize] = useState([0, 0])
+  useEffect(() => {
+    if (!ref.current) return
+    const ro = new ResizeObserver(entries => {
+      const { width, height } = entries[0].contentRect
+      setSize([Math.floor(width), Math.floor(height)])
+    })
+    ro.observe(ref.current)
+    return () => ro.disconnect()
+  }, [ref])
+  return size
+}
+
+export default function CandleChart({ symbol }) {
+  const { data: candles, loading } = usePolling(() => getCandles(symbol, 50), 3000, [symbol])
+  const containerRef = useRef(null)
+  const [w, h] = useSize(containerRef)
+
+  const chartData = (candles || []).map((c, i) => ({
+    ...c, i,
+    bullish: c.close >= c.open,
+    body: [Math.min(c.open, c.close), Math.max(c.open, c.close)],
+    wick: [c.low, c.high],
+  }))
+
+  const prices   = chartData.flatMap(c => [c.high, c.low]).filter(Boolean)
+  const minPrice = prices.length ? Math.min(...prices) * 0.9995 : 0
+  const maxPrice = prices.length ? Math.max(...prices) * 1.0005 : 0
+  const last     = candles?.[candles.length - 1]
+  const prev     = candles?.[candles.length - 2]
+  const dir      = last && prev ? (last.close >= prev.close ? 'up' : 'down') : 'flat'
+  const pct      = last && prev && prev.close ? ((last.close - prev.close) / prev.close * 100).toFixed(2) : '0.00'
+  const dirColor = dir === 'up' ? 'var(--green)' : dir === 'down' ? 'var(--red)' : 'var(--amber)'
+
+  return (
+    <div className="panel" style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      {/* Header */}
+      <div className="panel-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span className="panel-title">{symbol} / USD</span>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--text-muted)', background: 'var(--bg-panel-3)', padding: '1px 5px', borderRadius: 2 }}>10s</span>
+        </div>
+        {last && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>${last.close.toFixed(2)}</span>
+            <span className={`badge ${dir}`}>{dir === 'up' ? 'â–²' : dir === 'down' ? 'â–¼' : 'â€“'} {pct}%</span>
+          </div>
+        )}
+      </div>
+
+      {/* Chart area â€” ref measured, explicit px dimensions passed to Recharts */}
+      <div ref={containerRef} style={{ flex: 1, minHeight: 0, minWidth: 0, overflow: 'hidden', padding: '10px 0 6px' }}>
+        {loading || !chartData.length ? (
+          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
+            <div className="skeleton" style={{ width: '60%', height: 60, borderRadius: 4 }} />
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.15em' }}>AWAITING CANDLES...</div>
+          </div>
+        ) : w > 0 && h > 0 ? (
+          <ComposedChart width={w} height={h - 16} data={chartData} margin={{ left: 4, right: 56, top: 4, bottom: 4 }}>
+            <XAxis dataKey="i" hide />
+            <YAxis
+              domain={[minPrice, maxPrice]}
+              orientation="right"
+              tick={{ fill: 'var(--text-muted)', fontSize: 9, fontFamily: 'JetBrains Mono' }}
+              tickFormatter={v => v.toFixed(2)}
+              width={52} axisLine={false} tickLine={false}
+            />
+            <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'var(--border-bright)', strokeWidth: 1, strokeDasharray: '3 3' }} />
+            <Bar dataKey="wick" shape={<WickShape />} isAnimationActive={false} />
+            <Bar dataKey="body" shape={<BodyShape />} isAnimationActive={false} />
+            <Line dataKey="vwap" dot={false} strokeWidth={1} stroke="var(--amber)" strokeDasharray="4 4" isAnimationActive={false} opacity={0.7} />
+            {last && <ReferenceLine y={last.close} stroke={dirColor} strokeDasharray="2 6" strokeWidth={1} opacity={0.6} />}
+          </ComposedChart>
+        ) : null}
+      </div>
+
+      {/* Legend */}
+      <div style={{ padding: '4px 14px 6px', borderTop: '1px solid var(--border)', display: 'flex', gap: 16, alignItems: 'center', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <div style={{ width: 20, height: 1, borderTop: '1px dashed var(--amber)', opacity: 0.7 }} />
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--text-muted)' }}>VWAP</span>
+        </div>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--text-muted)' }}>{chartData.length} candles</span>
+        {last?.vwap && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--amber)', marginLeft: 'auto' }}>VWAP ${last.vwap.toFixed(2)}</span>}
+      </div>
+    </div>
+  )
+}
+
+
+================================================
+FILE: src/components/Indicators.jsx
+================================================
+import { usePolling } from '../hooks/usePolling'
+import { getPrice } from '../api/client'
+
+function MiniBar({ value, min = 0, max = 100, color }) {
+  const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100))
+  return (
+    <div style={{ flex: 1, height: 3, background: 'var(--bg-panel-3)', borderRadius: 2, overflow: 'hidden' }}>
+      <div style={{
+        width: pct + '%', height: '100%', background: color,
+        borderRadius: 2, transition: 'width 0.5s ease',
+        boxShadow: `0 0 4px ${color}`,
+      }} />
+    </div>
+  )
+}
+
+function Cell({ label, value, color = 'var(--text-primary)', bar, barMin, barMax, barColor, format }) {
+  const fmt = v => {
+    if (v == null) return 'â€”'
+    if (format) return format(v)
+    return Number(v).toFixed(3)
+  }
+  const hasValue = value != null
+
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', gap: 4,
+      padding: '6px 10px',
+      borderRight: '1px solid var(--border)',
+      borderBottom: '1px solid var(--border)',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{
+          fontFamily: 'var(--font-mono)', fontSize: 8,
+          color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase',
+        }}>
+          {label}
+        </span>
+        <span style={{
+          fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: hasValue ? 600 : 400,
+          color: hasValue ? color : 'var(--text-ghost)',
+        }}>
+          {fmt(value)}
+        </span>
+      </div>
+      {bar && hasValue && (
+        <MiniBar value={value} min={barMin} max={barMax} color={barColor} />
+      )}
+      {bar && !hasValue && (
+        <div style={{ height: 3, background: 'var(--bg-panel-3)', borderRadius: 2 }} />
+      )}
+    </div>
+  )
+}
+
+export default function Indicators({ symbol }) {
+  const { data: d, loading } = usePolling(() => getPrice(symbol), 2000, [symbol])
+
+  const rsiColor = !d?.rsi ? 'var(--text-primary)'
+    : d.rsi > 70 ? 'var(--red)'
+    : d.rsi < 30 ? 'var(--green)'
+    : 'var(--amber)'
+
+  const macdColor = d?.macd == null ? 'var(--text-primary)'
+    : d.macd > (d.macd_signal ?? 0) ? 'var(--green)' : 'var(--red)'
+
+  const ofiColor = d?.ofi == null ? 'var(--text-primary)'
+    : d.ofi > 0.2 ? 'var(--green)'
+    : d.ofi < -0.2 ? 'var(--red)'
+    : 'var(--amber)'
+
+  const vwapColor = d?.vwap == null ? 'var(--text-primary)'
+    : (d.price ?? 0) >= d.vwap ? 'var(--green)' : 'var(--red)'
+
+  const emaColor = d?.ema_short == null ? 'var(--text-primary)'
+    : d.ema_short >= (d.ema_long ?? 0) ? 'var(--green)' : 'var(--red)'
+
+  // How many non-null values do we have?
+  const fields = [d?.rsi, d?.macd, d?.vwap, d?.ema_short, d?.ofi]
+  const anyData = d && fields.some(v => v != null)
+
+  return (
+    <div className="panel">
+      <div className="panel-header">
+        <span className="panel-title">Indicators â€” {symbol}</span>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {d && !anyData && (
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--text-muted)' }}>
+              awaiting tradesâ€¦
+            </span>
+          )}
+          {d?.volume != null && (
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-muted)' }}>
+              vol {d.volume.toLocaleString()}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {loading ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)' }}>
+          {Array.from({ length: 10 }).map((_, i) => (
+            <div key={i} style={{ padding: '6px 10px', borderRight: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
+              <div className="skeleton" style={{ height: 10, width: '55%', marginBottom: 5 }} />
+              <div className="skeleton" style={{ height: 14, width: '40%' }} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)' }}>
+          <Cell label="RSI 14"   value={d?.rsi}         color={rsiColor}  bar barMin={0}  barMax={100} barColor={rsiColor} />
+          <Cell label="MACD"     value={d?.macd}         color={macdColor} />
+          <Cell label="MACD Sig" value={d?.macd_signal}  color="var(--text-secondary)" />
+          <Cell label="BB Upper" value={d?.bb_upper}     color="var(--text-secondary)" />
+          <Cell label="BB Lower" value={d?.bb_lower}     color="var(--text-secondary)" />
+          <Cell label="VWAP"     value={d?.vwap}         color={vwapColor} />
+          <Cell label="EMA 9"    value={d?.ema_short}    color={emaColor} />
+          <Cell label="EMA 21"   value={d?.ema_long}     color={emaColor} />
+          <Cell label="OFI"      value={d?.ofi}          color={ofiColor}  bar barMin={-1} barMax={1}   barColor={ofiColor} />
+          <Cell label="Spread"   value={d?.spread}       color="var(--cyan)" />
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+================================================
+FILE: src/components/Leaderboard.jsx
+================================================
+import { usePolling } from '../hooks/usePolling'
+import { getLeaderboard } from '../api/client'
+
+const SHORT = {
+  'user':               'YOU',
+  'bot-market-maker':   'MKT-MKR',
+  'bot-momentum':       'MOMENTUM',
+  'bot-random':         'RANDOM',
+  'bot-mean-reversion': 'MEAN-REV',
+}
+
+const RANK_COLORS = ['var(--amber)', 'var(--text-secondary)', '#cd7f32']
+
+function formatPnl(val) {
+  const abs = Math.abs(val)
+  const sign = val >= 0 ? '+' : '-'
+  if (abs >= 1e12) return sign + (abs / 1e12).toFixed(1) + 'T'
+  if (abs >= 1e9)  return sign + (abs / 1e9).toFixed(1)  + 'B'
+  if (abs >= 1e6)  return sign + (abs / 1e6).toFixed(1)  + 'M'
+  if (abs >= 1e3)  return sign + (abs / 1e3).toFixed(1)  + 'K'
+  return (val >= 0 ? '+' : '') + val.toFixed(2)
+}
+
+export default function Leaderboard() {
+  const { data, loading } = usePolling(getLeaderboard, 3000)
+  const user = data?.find(r => r.client_id === 'user')
+
+  return (
+    <div className="panel" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div className="panel-header">
+        <span className="panel-title">Leaderboard</span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--text-muted)' }}>P&L RANKED</span>
+      </div>
+
+      {/* Headers */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '20px 1fr 64px 44px',
+        gap: 4,
+        padding: '4px 12px',
+        borderBottom: '1px solid var(--border)',
+      }}>
+        {['#', 'PARTICIPANT', 'P&L', 'SHARPE'].map((h, i) => (
+          <span key={h} style={{
+            fontFamily: 'var(--font-mono)', fontSize: 8,
+            color: 'var(--text-muted)', letterSpacing: '0.1em',
+            textAlign: i > 1 ? 'right' : 'left',
+          }}>{h}</span>
+        ))}
+      </div>
+
+      <div style={{ flex: 1, overflow: 'auto' }}>
+        {loading || !data ? (
+          <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {[90, 75, 85, 70, 80].map((w, i) => (
+              <div key={i} className="skeleton" style={{ height: 32, width: `${w}%`, borderRadius: 4 }} />
+            ))}
+          </div>
+        ) : data.map((r, i) => {
+          const pnl    = r.total_pnl
+          const pos    = pnl > 0
+          const neg    = pnl < 0
+          const isUser = r.client_id === 'user'
+
+          return (
+            <div key={r.client_id} style={{
+              display: 'grid',
+              gridTemplateColumns: '20px 1fr 64px 44px',
+              gap: 4,
+              padding: '7px 12px',
+              alignItems: 'center',
+              background: isUser ? 'rgba(0,230,118,0.04)' : 'transparent',
+              borderLeft: isUser ? '2px solid var(--green)' : '2px solid transparent',
+              borderBottom: '1px solid var(--border)',
+            }}>
+              <span style={{
+                fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
+                color: RANK_COLORS[i] ?? 'var(--text-muted)',
+              }}>
+                {i + 1}
+              </span>
+
+              <div>
+                <div style={{
+                  fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: isUser ? 700 : 500,
+                  color: isUser ? 'var(--green)' : 'var(--text-primary)',
+                  letterSpacing: '0.06em',
+                }}>
+                  {SHORT[r.client_id] ?? r.client_id}
+                </div>
+                {isUser && (
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 7, color: 'var(--green)', opacity: 0.7, letterSpacing: '0.1em' }}>
+                    ACTIVE
+                  </div>
+                )}
+              </div>
+
+              <div style={{ textAlign: 'right' }}>
+                <span style={{
+                  fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700,
+                  color: pos ? 'var(--green)' : neg ? 'var(--red)' : 'var(--amber)',
+                }}>
+                  {formatPnl(pnl)}
+                </span>
+              </div>
+
+              <div style={{
+                textAlign: 'right',
+                fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)',
+              }}>
+                {r.sharpe != null ? r.sharpe.toFixed(2) : 'â€”'}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Cash footer */}
+      {user && (
+        <div style={{
+          padding: '8px 12px',
+          borderTop: '1px solid var(--border)',
+          background: 'var(--bg-panel-2)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Your Cash</span>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color: 'var(--green)' }}>
+            ${user.cash?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+================================================
+FILE: src/components/MarketStatus.jsx
+================================================
+import { usePolling } from '../hooks/usePolling'
+import { getStatus } from '../api/client'
+
+export default function MarketStatus() {
+  const { data, loading } = usePolling(getStatus, 5000)
+
+  if (loading || !data) {
+    return (
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="skeleton" style={{ width: 6, height: 6, borderRadius: '50%' }} />
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      {data.map(s => (
+        <div key={s.symbol} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <div style={{
+            width: 6, height: 6, borderRadius: '50%',
+            background: s.halted ? 'var(--red)' : 'var(--green)',
+            boxShadow: s.halted
+              ? '0 0 5px var(--red)'
+              : '0 0 5px var(--green)',
+          }} />
+          <span style={{
+            fontFamily: 'var(--font-mono)', fontSize: 8,
+            color: s.halted ? 'var(--red)' : 'var(--text-muted)',
+            letterSpacing: '0.06em',
+          }}>
+            {s.symbol}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+
+================================================
+FILE: src/components/OrderBook.jsx
+================================================
+import { usePolling } from '../hooks/usePolling'
+import { getOrderBook } from '../api/client'
+
+function Row({ level, side, maxQty }) {
+  const pct = Math.min((level.quantity / maxQty) * 100, 100)
+  const isBid = side === 'bid'
+  const color = isBid ? 'var(--green)' : 'var(--red)'
+  const fillColor = isBid ? 'rgba(0,230,118,0.06)' : 'rgba(255,61,61,0.06)'
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', padding: '3px 12px', position: 'relative' }}>
+      <div style={{
+        position: 'absolute', inset: 0,
+        width: pct + '%',
+        left: isBid ? 'auto' : 0,
+        right: isBid ? 0 : 'auto',
+        background: fillColor,
+        transition: 'width 0.3s ease',
+      }} />
+      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color, fontWeight: 500, position: 'relative', zIndex: 1 }}>
+        {level.price.toFixed(2)}
+      </span>
+      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--text-secondary)', textAlign: 'right', position: 'relative', zIndex: 1 }}>
+        {level.quantity.toLocaleString()}
+      </span>
+    </div>
+  )
+}
+
+function EmptyBook({ side }) {
+  const color = side === 'ask' ? 'var(--red)' : 'var(--green)'
+  return (
+    <div style={{
+      flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+      flexDirection: 'column', gap: 4,
+    }}>
+      <div style={{ width: 20, height: 1, background: color, opacity: 0.3 }} />
+      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--text-muted)', letterSpacing: '0.12em' }}>
+        NO {side === 'ask' ? 'ASKS' : 'BIDS'}
+      </span>
+    </div>
+  )
+}
+
+export default function OrderBook({ symbol }) {
+  const { data, loading } = usePolling(() => getOrderBook(symbol, 8), 1500, [symbol])
+
+  const bids = data?.bids || []
+  const asks = data?.asks || []
+  const maxQty = Math.max(...[...bids, ...asks].map(l => l.quantity), 1)
+  const hasData = bids.length > 0 || asks.length > 0
+
+  return (
+    <div className="panel" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div className="panel-header">
+        <span className="panel-title">Order Book</span>
+        {data && hasData && (
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--cyan)' }}>
+            spd ${data.spread?.toFixed(3) ?? 'â€”'}
+          </span>
+        )}
+      </div>
+
+      {/* Column labels */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', padding: '4px 12px 2px', borderBottom: '1px solid var(--border)' }}>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>PRICE</span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase', textAlign: 'right' }}>SIZE</span>
+      </div>
+
+      {/* Asks */}
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+        {loading
+          ? <SkeletonRows n={5} />
+          : asks.length > 0
+            ? [...asks].reverse().map((a, i) => <Row key={i} level={a} side="ask" maxQty={maxQty} />)
+            : <EmptyBook side="ask" />
+        }
+      </div>
+
+      {/* Mid */}
+      <div style={{
+        padding: '6px 12px',
+        borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)',
+        background: 'var(--bg-panel-3)',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      }}>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Mid</span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 700, color: data?.mid ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+          {data?.mid ? `$${data.mid.toFixed(2)}` : 'â€”'}
+        </span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--text-muted)' }}>USD</span>
+      </div>
+
+      {/* Bids */}
+      <div style={{ flex: 1, overflow: 'hidden' }}>
+        {loading
+          ? <SkeletonRows n={5} />
+          : bids.length > 0
+            ? bids.map((b, i) => <Row key={i} level={b} side="bid" maxQty={maxQty} />)
+            : <EmptyBook side="bid" />
+        }
+      </div>
+
+      {/* Engine note when empty */}
+      {!loading && !hasData && (
+        <div style={{
+          padding: '5px 12px',
+          borderTop: '1px solid var(--border)',
+          fontFamily: 'var(--font-mono)', fontSize: 8,
+          color: 'var(--text-muted)', letterSpacing: '0.08em',
+          textAlign: 'center',
+        }}>
+          engine pod not accessible from api pod
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SkeletonRows({ n }) {
+  return (
+    <div style={{ padding: '6px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+      {Array.from({ length: n }).map((_, i) => (
+        <div key={i} className="skeleton" style={{ height: 14, width: `${55 + (i * 7) % 40}%`, borderRadius: 2 }} />
+      ))}
+    </div>
+  )
+}
+
+
+================================================
+FILE: src/components/OrderPanel.jsx
+================================================
+import { useState } from 'react'
+import { placeOrder } from '../api/client'
+
+const SIDES = ['buy', 'sell']
+const TYPES = ['limit', 'market']
+
+export default function OrderPanel({ symbol }) {
+  const [side,     setSide]     = useState('buy')
+  const [type,     setType]     = useState('limit')
+  const [qty,      setQty]      = useState('')
+  const [price,    setPrice]    = useState('')
+  const [clientId, setClientId] = useState('user')
+  const [status,   setStatus]   = useState(null)
+  const [loading,  setLoading]  = useState(false)
+
+  const isBuy = side === 'buy'
+  const accentColor = isBuy ? 'var(--green)' : 'var(--red)'
+
+  const submit = async () => {
+    if (!qty || qty <= 0) return setStatus({ ok: false, msg: 'QTY REQUIRED' })
+    if (type === 'limit' && !price) return setStatus({ ok: false, msg: 'PRICE REQUIRED' })
+
+    setLoading(true)
+    setStatus(null)
+    try {
+      const order = {
+        symbol,
+        side,
+        order_type: type,
+        quantity: parseInt(qty),
+        client_id: clientId || 'user',
+        ...(type === 'limit' && { price: parseFloat(price) }),
+      }
+      const res = await placeOrder(order)
+      setStatus({ ok: true, msg: `ACCEPTED Â· ${res.order_id?.slice(0, 8)}` })
+      setQty('')
+      setPrice('')
+    } catch (e) {
+      const msg = e.response?.data?.detail ?? e.message ?? 'ORDER REJECTED'
+      setStatus({ ok: false, msg: msg.toUpperCase().slice(0, 40) })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const inputStyle = {
+    background: 'var(--bg-panel-3)',
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--radius-sm)',
+    color: 'var(--text-primary)',
+    fontFamily: 'var(--font-mono)',
+    fontSize: 11,
+    padding: '4px 8px',
+    width: '100%',
+    outline: 'none',
+    transition: 'border-color 0.15s',
+    height: 28,
+  }
+
+  const label = text => (
+    <div style={{
+      fontFamily: 'var(--font-mono)', fontSize: 8,
+      color: 'var(--text-muted)', letterSpacing: '0.1em',
+      textTransform: 'uppercase', marginBottom: 3,
+    }}>{text}</div>
+  )
+
+  return (
+    <div className="panel" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div className="panel-header">
+        <span className="panel-title">Order Entry</span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: accentColor }}>
+          {symbol}
+        </span>
+      </div>
+
+      <div style={{ flex: 1, padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 7 }}>
+
+        {/* Side selector */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+          {SIDES.map(s => {
+            const active = side === s
+            const c     = s === 'buy' ? 'var(--green)' : 'var(--red)'
+            const faint = s === 'buy' ? 'var(--green-faint)' : 'var(--red-faint)'
+            return (
+              <button key={s} onClick={() => setSide(s)} style={{
+                background:    active ? faint : 'transparent',
+                color:         active ? c : 'var(--text-muted)',
+                border:        `1px solid ${active ? c : 'var(--border)'}`,
+                borderRadius:  'var(--radius-sm)',
+                fontFamily:    'var(--font-mono)',
+                fontSize:      9,
+                fontWeight:    700,
+                letterSpacing: '0.15em',
+                padding:       '4px 0',
+                cursor:        'pointer',
+                transition:    'all 0.15s',
+                boxShadow:     active ? `0 0 8px ${faint}` : 'none',
+              }}>
+                {s.toUpperCase()}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Type selector */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+          {TYPES.map(t => {
+            const active = type === t
+            return (
+              <button key={t} onClick={() => setType(t)} style={{
+                background:    active ? 'var(--amber-faint)' : 'transparent',
+                color:         active ? 'var(--amber)' : 'var(--text-muted)',
+                border:        `1px solid ${active ? 'var(--amber)' : 'var(--border)'}`,
+                borderRadius:  'var(--radius-sm)',
+                fontFamily:    'var(--font-mono)',
+                fontSize:      9,
+                letterSpacing: '0.12em',
+                padding:       '3px 0',
+                cursor:        'pointer',
+                transition:    'all 0.15s',
+              }}>
+                {t.toUpperCase()}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Qty + Price side by side */}
+        <div style={{ display: 'grid', gridTemplateColumns: type === 'limit' ? '1fr 1fr' : '1fr', gap: 6 }}>
+          <div>
+            {label('Qty')}
+            <input
+              type="number" min="1" value={qty}
+              onChange={e => setQty(e.target.value)}
+              placeholder="0"
+              style={inputStyle}
+              onFocus={e => e.target.style.borderColor = accentColor}
+              onBlur={e => e.target.style.borderColor = 'var(--border)'}
+            />
+          </div>
+          {type === 'limit' && (
+            <div>
+              {label('Price USD')}
+              <input
+                type="number" step="0.01" value={price}
+                onChange={e => setPrice(e.target.value)}
+                placeholder="0.00"
+                style={inputStyle}
+                onFocus={e => e.target.style.borderColor = accentColor}
+                onBlur={e => e.target.style.borderColor = 'var(--border)'}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Client ID */}
+        <div>
+          {label('Client ID')}
+          <input
+            type="text" value={clientId}
+            onChange={e => setClientId(e.target.value)}
+            placeholder="user"
+            style={inputStyle}
+            onFocus={e => e.target.style.borderColor = accentColor}
+            onBlur={e => e.target.style.borderColor = 'var(--border)'}
+          />
+        </div>
+
+        {/* Submit */}
+        <button onClick={submit} disabled={loading} style={{
+          background:    isBuy ? 'rgba(0,230,118,0.15)' : 'rgba(255,61,61,0.15)',
+          color:         accentColor,
+          border:        `1px solid ${accentColor}`,
+          borderRadius:  'var(--radius-sm)',
+          fontFamily:    'var(--font-mono)',
+          fontSize:      10,
+          fontWeight:    700,
+          letterSpacing: '0.15em',
+          padding:       '7px',
+          cursor:        loading ? 'not-allowed' : 'pointer',
+          opacity:       loading ? 0.6 : 1,
+          transition:    'all 0.15s',
+          boxShadow:     `0 0 10px ${isBuy ? 'var(--green-glow)' : 'var(--red-faint)'}`,
+        }}>
+          {loading ? 'SENDING...' : `${side.toUpperCase()} ${symbol}`}
+        </button>
+
+        {/* Status */}
+        {status && (
+          <div style={{
+            fontFamily:    'var(--font-mono)',
+            fontSize:      9,
+            color:         status.ok ? 'var(--green)' : 'var(--red)',
+            textAlign:     'center',
+            letterSpacing: '0.06em',
+            padding:       '3px 8px',
+            background:    status.ok ? 'var(--green-faint)' : 'var(--red-faint)',
+            borderRadius:  'var(--radius-sm)',
+            border:        `1px solid ${status.ok ? 'var(--green)' : 'var(--red)'}`,
+          }}>
+            {status.ok ? 'âœ“' : 'âœ—'} {status.msg}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+
+================================================
+FILE: src/components/SentimentGauge.jsx
+================================================
+import { usePolling } from '../hooks/usePolling'
+import { getSentiment } from '../api/client'
+
+export default function SentimentGauge({ symbol }) {
+  const { data: d, loading } = usePolling(() => getSentiment(symbol), 2000, [symbol])
+
+  const sentiment  = d?.sentiment ?? 'neutral'
+  const strength   = d?.strength  ?? 0
+  const buyRatio   = d?.buy_ratio ?? 0.5
+  const velocity   = d?.trade_velocity ?? 0
+
+  const color = sentiment === 'bullish' ? 'var(--green)'
+    : sentiment === 'bearish' ? 'var(--red)'
+    : 'var(--amber)'
+
+  const fillPct = sentiment === 'bullish' ? 50 + strength * 50
+    : sentiment === 'bearish' ? 50 - strength * 50
+    : 50
+
+  const strPct = Math.round(strength * 100)
+
+  return (
+    <div className="panel" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div className="panel-header">
+        <span className="panel-title">Sentiment</span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-muted)' }}>
+          {velocity.toFixed(2)} t/s
+        </span>
+      </div>
+
+      {loading || !d ? (
+        <div style={{ flex: 1, padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {[80, 100, 60, 70].map((w, i) => (
+            <div key={i} className="skeleton" style={{ height: 14, width: `${w}%`, borderRadius: 2 }} />
+          ))}
+        </div>
+      ) : (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '12px 14px', gap: 12 }}>
+
+          {/* Signal label */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{
+                fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 700,
+                color, letterSpacing: '0.12em', textTransform: 'uppercase',
+              }}>
+                {sentiment}
+              </div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--text-muted)', marginTop: 2 }}>
+                STRENGTH
+              </div>
+            </div>
+            <div style={{
+              fontFamily: 'var(--font-mono)', fontSize: 20, fontWeight: 700,
+              color, opacity: 0.9,
+            }}>
+              {strPct}%
+            </div>
+          </div>
+
+          {/* Gauge bar */}
+          <div>
+            <div style={{
+              position: 'relative', height: 10,
+              background: 'var(--bg-panel-3)', borderRadius: 5, overflow: 'hidden',
+            }}>
+              {/* Colored fill */}
+              <div style={{
+                position: 'absolute',
+                left: sentiment === 'bearish' ? `${fillPct}%` : '50%',
+                width: `${Math.abs(fillPct - 50)}%`,
+                height: '100%',
+                background: color,
+                transition: 'all 0.6s ease',
+                borderRadius: 5,
+                boxShadow: `0 0 8px ${color}`,
+              }} />
+              {/* Midline */}
+              <div style={{
+                position: 'absolute', left: '50%', top: 0, bottom: 0, width: 1,
+                background: 'var(--border-bright)',
+              }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--red)' }}>â—„ BEAR</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--green)' }}>BULL â–º</span>
+            </div>
+          </div>
+
+          {/* Buy/sell ratio */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                Buy Ratio
+              </span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 600, color: 'var(--text-primary)' }}>
+                {(buyRatio * 100).toFixed(1)}%
+              </span>
+            </div>
+            <div style={{ display: 'flex', height: 5, borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{
+                width: (buyRatio * 100) + '%',
+                background: 'var(--green)',
+                transition: 'width 0.5s ease',
+                boxShadow: '0 0 6px var(--green)',
+              }} />
+              <div style={{ flex: 1, background: 'var(--red)', opacity: 0.7 }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3 }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--green)', opacity: 0.7 }}>BUY</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--red)', opacity: 0.7 }}>SELL</span>
+            </div>
+          </div>
+
+          {/* Stats row */}
+          <div style={{
+            display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
+            paddingTop: 8, borderTop: '1px solid var(--border)',
+            gap: 4,
+          }}>
+            {[
+              ['VEL', velocity.toFixed(2), 'var(--cyan)'],
+              ['STR', strPct + '%', color],
+              ['SELL', ((1 - buyRatio) * 100).toFixed(1) + '%', 'var(--red)'],
+            ].map(([k, v, c]) => (
+              <div key={k} style={{ textAlign: 'center' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--text-muted)', marginBottom: 2, letterSpacing: '0.1em' }}>{k}</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600, color: c }}>{v}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+================================================
+FILE: src/components/Sidebar.jsx
+================================================
+const NAV = [
+  {
+    id: 'terminal',
+    label: 'Terminal',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <rect x="2" y="3" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.2" fill="none"/>
+        <path d="M5 7l3 2.5L5 12" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M10 12h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+      </svg>
+    ),
+  },
+  {
+    id: 'docs',
+    label: 'API Docs',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <path d="M4 2h7l3 3v11a1 1 0 01-1 1H4a1 1 0 01-1-1V3a1 1 0 011-1z" stroke="currentColor" strokeWidth="1.2" fill="none"/>
+        <path d="M11 2v4h3M6 9h6M6 12h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+      </svg>
+    ),
+  },
+]
+
+export default function Sidebar({ page, onPage }) {
+  return (
+    <nav style={{
+      width: 'var(--sidebar-w)',
+      background: 'var(--bg-panel-2)',
+      borderRight: '1px solid var(--border)',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      padding: '12px 0',
+      gap: 4,
+      flexShrink: 0,
+    }}>
+      {NAV.map(item => {
+        const active = page === item.id
+        return (
+          <button
+            key={item.id}
+            title={item.label}
+            onClick={() => onPage(item.id)}
+            style={{
+              width: 40,
+              height: 40,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: active ? 'var(--green-faint)' : 'transparent',
+              border: active ? '1px solid var(--green)' : '1px solid transparent',
+              borderRadius: 'var(--radius-md)',
+              color: active ? 'var(--green)' : 'var(--text-muted)',
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+              boxShadow: active ? '0 0 12px var(--green-glow)' : 'none',
+            }}
+            onMouseEnter={e => {
+              if (!active) {
+                e.currentTarget.style.background = 'var(--bg-hover)'
+                e.currentTarget.style.color = 'var(--text-secondary)'
+              }
+            }}
+            onMouseLeave={e => {
+              if (!active) {
+                e.currentTarget.style.background = 'transparent'
+                e.currentTarget.style.color = 'var(--text-muted)'
+              }
+            }}
+          >
+            {item.icon}
+          </button>
+        )
+      })}
+
+      {/* Spacer */}
+      <div style={{ flex: 1 }} />
+
+      {/* Live indicator */}
+      <div style={{
+        width: 40,
+        height: 40,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 4,
+      }}>
+        <div className="dot live" />
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 7, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>LIVE</span>
+      </div>
+    </nav>
+  )
+}
+
+
+================================================
+FILE: src/components/Ticker.jsx
+================================================
+import { useEffect, useRef } from 'react'
+import { usePolling } from '../hooks/usePolling'
+import { getAllPrices, SYMBOLS } from '../api/client'
+
+const COMPANY = {
+  PEAR: 'Pear Technologies',
+  TSLA: 'TeslaCoil Motors',
+  LBRY: 'Labyrinth Search',
+  RNFR: 'Rainforest Commerce',
+  MHRD: 'Microhard Corp',
+}
+
+export default function Ticker({ symbol, onSelect }) {
+  const { data: prices, error } = usePolling(getAllPrices, 2000)
+  const prevRef = useRef({})
+  const prev = prevRef.current
+  const current = prices || {}
+
+  useEffect(() => {
+    if (prices) prevRef.current = { ...prices }
+  }, [prices])
+
+  return (
+    <div style={{
+      height: 'var(--ticker-h)',
+      background: 'var(--bg-panel)',
+      borderBottom: '1px solid var(--border)',
+      display: 'flex',
+      alignItems: 'stretch',
+      overflow: 'hidden',
+      flexShrink: 0,
+    }}>
+      {error && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 6, padding: '0 16px',
+          color: 'var(--red)', fontFamily: 'var(--font-mono)', fontSize: 9,
+        }}>
+          <span style={{ fontSize: 12 }}>âš </span> API UNREACHABLE
+        </div>
+      )}
+
+      {SYMBOLS.map((s, i) => {
+        const price = current[s]
+        const p = prev[s]
+        const dir = !p || price === p ? 'flat' : price > p ? 'up' : 'down'
+        const arrow = dir === 'up' ? 'â–²' : dir === 'down' ? 'â–¼' : 'â€“'
+        const pct = p && p !== 0 ? ((price - p) / p * 100).toFixed(2) : '0.00'
+        const active = s === symbol
+        const dirColor = dir === 'up' ? 'var(--green)' : dir === 'down' ? 'var(--red)' : 'var(--amber)'
+
+        return (
+          <button
+            key={s}
+            onClick={() => onSelect(s)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              height: '100%',
+              padding: '0 16px',
+              background: active ? 'var(--bg-active)' : 'transparent',
+              borderRight: '1px solid var(--border)',
+              borderLeft: i === 0 ? '1px solid var(--border)' : 'none',
+              border: 'none',
+              borderRight: '1px solid var(--border)',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-mono)',
+              textAlign: 'left',
+              transition: 'background 0.15s',
+              position: 'relative',
+            }}
+          >
+            {active && (
+              <div style={{
+                position: 'absolute', bottom: 0, left: 0, right: 0, height: 2,
+                background: 'var(--green)',
+                boxShadow: '0 0 8px var(--green)',
+              }} />
+            )}
+
+            {/* Symbol */}
+            <span style={{
+              color: active ? 'var(--green)' : 'var(--text-secondary)',
+              fontSize: 10,
+              fontWeight: 600,
+              letterSpacing: '0.1em',
+            }}>
+              {s}
+            </span>
+
+            {/* Company abbrev */}
+            <span style={{ color: 'var(--text-muted)', fontSize: 9 }}>
+              {COMPANY[s].split(' ')[0].slice(0, 5)}
+            </span>
+
+            {price != null ? (
+              <>
+                <span style={{ color: 'var(--text-primary)', fontSize: 11, fontWeight: 500 }}>
+                  ${price.toFixed(2)}
+                </span>
+                <span style={{ color: dirColor, fontSize: 9, letterSpacing: '0.04em' }}>
+                  {arrow} {pct}%
+                </span>
+              </>
+            ) : (
+              <span style={{ color: 'var(--text-muted)', fontSize: 9 }}>â€”</span>
+            )}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+
+================================================
+FILE: src/hooks/usePolling.js
+================================================
+import { useState, useEffect, useRef, useCallback } from 'react'
+
+export function usePolling(fetchFn, interval = 2000, deps = []) {
+  const [data, setData]     = useState(null)
+  const [error, setError]   = useState(null)
+  const [loading, setLoading] = useState(true)
+  const timerRef            = useRef(null)
+  const mountedRef          = useRef(true)
+
+  const fetch = useCallback(async () => {
+    try {
+      const result = await fetchFn()
+      if (mountedRef.current) { setData(result); setError(null) }
+    } catch (e) {
+      if (mountedRef.current) setError(e)
+    } finally {
+      if (mountedRef.current) setLoading(false)
+    }
+  }, deps)
+
+  useEffect(() => {
+    mountedRef.current = true
+    fetch()
+    timerRef.current = setInterval(fetch, interval)
+    return () => {
+      mountedRef.current = false
+      clearInterval(timerRef.current)
+    }
+  }, [fetch, interval])
+
+  return { data, error, loading, refetch: fetch }
+}
+
+
+================================================
+FILE: src/pages/Docs.jsx
+================================================
+const API_BASE = 'https://bot-street-api.sujalmaheshwari.com'
+
+const Section = ({ title, children }) => (
+  <div style={{ marginBottom: 40 }}>
+    <div style={{
+      fontFamily: 'var(--font-mono)',
+      fontSize: 9,
+      fontWeight: 600,
+      color: 'var(--green)',
+      letterSpacing: '0.2em',
+      textTransform: 'uppercase',
+      marginBottom: 16,
+      paddingBottom: 8,
+      borderBottom: '1px solid var(--border)',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+    }}>
+      <div style={{ width: 16, height: 1, background: 'var(--green)', opacity: 0.5 }} />
+      {title}
+    </div>
+    {children}
+  </div>
+)
+
+const Code = ({ children, block }) => block ? (
+  <pre style={{
+    background: 'var(--bg-panel-2)',
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--radius-md)',
+    padding: '16px 18px',
+    fontSize: 10,
+    color: 'var(--text-primary)',
+    fontFamily: 'var(--font-mono)',
+    overflowX: 'auto',
+    lineHeight: 1.8,
+    marginTop: 10,
+  }}>
+    {children}
+  </pre>
+) : (
+  <code style={{
+    background: 'var(--bg-panel-2)',
+    border: '1px solid var(--border)',
+    borderRadius: 3,
+    padding: '1px 6px',
+    fontSize: 10,
+    color: 'var(--cyan)',
+    fontFamily: 'var(--font-mono)',
+  }}>
+    {children}
+  </code>
+)
+
+const METHOD_COLORS = {
+  GET: 'var(--green)',
+  POST: 'var(--amber)',
+  DELETE: 'var(--red)',
+}
+
+const Endpoint = ({ method, path, desc }) => (
+  <div style={{
+    display: 'grid',
+    gridTemplateColumns: '48px 1fr auto',
+    alignItems: 'center',
+    gap: 12,
+    padding: '8px 0',
+    borderBottom: '1px solid var(--border)',
+  }}>
+    <span style={{
+      fontFamily: 'var(--font-mono)',
+      fontSize: 9,
+      fontWeight: 700,
+      letterSpacing: '0.06em',
+      color: METHOD_COLORS[method] ?? 'var(--text-secondary)',
+    }}>
+      {method}
+    </span>
+    <Code>{path}</Code>
+    <span style={{ color: 'var(--text-secondary)', fontSize: 11 }}>{desc}</span>
+  </div>
+)
+
+const Tool = ({ name, desc }) => (
+  <div style={{
+    padding: '8px 0',
+    borderBottom: '1px solid var(--border)',
+    display: 'flex',
+    gap: 16,
+    alignItems: 'flex-start',
+  }}>
+    <span style={{
+      fontFamily: 'var(--font-mono)',
+      fontSize: 10,
+      color: 'var(--green)',
+      width: 180,
+      flexShrink: 0,
+    }}>
+      {name}
+    </span>
+    <span style={{ color: 'var(--text-secondary)', fontSize: 11, lineHeight: 1.6 }}>{desc}</span>
+  </div>
+)
+
+export default function Docs() {
+  return (
+    <div style={{
+      flex: 1,
+      overflowY: 'auto',
+      background: 'var(--bg-base)',
+    }}>
+      <div style={{ padding: '40px 48px', maxWidth: 860, margin: '0 auto', width: '100%' }}>
+
+        {/* Hero */}
+        <div style={{ marginBottom: 48 }}>
+          <div style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 20,
+            fontWeight: 700,
+            color: 'var(--green)',
+            letterSpacing: '0.1em',
+            marginBottom: 8,
+          }}>
+            BOT STREET TERMINAL
+          </div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.2em', marginBottom: 16 }}>
+            API REFERENCE Â· THE WORLD'S LEAST REGULATED MARKET
+          </div>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 12, lineHeight: 1.8, maxWidth: 580 }}>
+            Connect your LLM agent to a live algorithmic market. Trade against bots, read real indicators,
+            and watch your P&L compete on the leaderboard. Built on Apache Kafka Â· FastAPI Â· MCP.
+          </p>
+          <div style={{ marginTop: 16, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {[
+              ['API Docs', `${API_BASE}/docs`],
+              ['Health', `${API_BASE}/system/health`],
+              ['Leaderboard', `${API_BASE}/system/leaderboard`],
+            ].map(([label, url]) => (
+              <a key={label} href={url} target="_blank" rel="noreferrer" style={{
+                fontFamily: 'var(--font-mono)',
+                color: 'var(--cyan)',
+                fontSize: 9,
+                letterSpacing: '0.1em',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '4px 12px',
+                textDecoration: 'none',
+                background: 'var(--bg-panel)',
+              }}>
+                {label} â†—
+              </a>
+            ))}
+          </div>
+        </div>
+
+        <Section title="Connect via MCP (Claude Desktop)">
+          <p style={{ color: 'var(--text-secondary)', fontSize: 11, lineHeight: 1.8, marginBottom: 8 }}>
+            The MCP server exposes all market tools so any MCP-compatible agent can trade.
+            Add this to your <Code>claude_desktop_config.json</Code>:
+          </p>
+          <Code block>{`{
+  "mcpServers": {
+    "bot-street": {
+      "url": "https://bot-street-api.sujalmaheshwari.com/mcp"
+    }
+  }
+}`}</Code>
+          <p style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 12, lineHeight: 1.8 }}>
+            Config file locations:<br />
+            â€” macOS: <Code>~/Library/Application Support/Claude/claude_desktop_config.json</Code><br />
+            â€” Windows: <Code>%APPDATA%\Claude\claude_desktop_config.json</Code>
+          </p>
+        </Section>
+
+        <Section title="Available MCP Tools">
+          <Tool name="get_prices"         desc="Current price for all symbols" />
+          <Tool name="get_order_book"     desc="Top bids and asks for a symbol" />
+          <Tool name="get_indicators"     desc="RSI, MACD, Bollinger, VWAP, EMA, OFI" />
+          <Tool name="get_sentiment"      desc="Bullish/bearish signal and strength" />
+          <Tool name="get_candles"        desc="Last N OHLCV candles (10s buckets)" />
+          <Tool name="get_portfolio"      desc="Holdings, cash, P&L for any client" />
+          <Tool name="place_order"        desc="Submit a buy or sell order" />
+          <Tool name="get_leaderboard"    desc="All participants ranked by P&L" />
+          <Tool name="get_market_status"  desc="Halted / active status per symbol" />
+          <Tool name="get_all_indicators" desc="Market scan across all symbols at once" />
+        </Section>
+
+        <Section title="REST API Reference">
+          <Endpoint method="GET"    path="/market/all/prices"         desc="All symbol prices" />
+          <Endpoint method="GET"    path="/market/{symbol}/price"     desc="Price + all indicators" />
+          <Endpoint method="GET"    path="/market/{symbol}/orderbook" desc="Bids and asks" />
+          <Endpoint method="GET"    path="/market/{symbol}/candles"   desc="OHLCV history" />
+          <Endpoint method="GET"    path="/market/{symbol}/sentiment" desc="Sentiment signal" />
+          <Endpoint method="GET"    path="/portfolio/{client_id}"     desc="Holdings and P&L" />
+          <Endpoint method="GET"    path="/system/leaderboard"        desc="P&L rankings" />
+          <Endpoint method="GET"    path="/system/status"             desc="Halt status per symbol" />
+          <Endpoint method="GET"    path="/system/health"             desc="Kafka connectivity" />
+          <Endpoint method="POST"   path="/orders"                    desc="Place an order" />
+          <Endpoint method="DELETE" path="/orders/{order_id}"         desc="Cancel an order" />
+        </Section>
+
+        <Section title="Quickstart â€” curl">
+          <p style={{ color: 'var(--text-secondary)', fontSize: 11, marginBottom: 4 }}>Place a limit buy:</p>
+          <Code block>{`curl -X POST ${API_BASE}/orders \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "symbol":     "PEAR",
+    "side":       "buy",
+    "order_type": "limit",
+    "price":      149.50,
+    "quantity":   10,
+    "client_id":  "my-agent"
+  }'`}</Code>
+
+          <p style={{ color: 'var(--text-secondary)', fontSize: 11, marginTop: 16, marginBottom: 4 }}>Check your portfolio:</p>
+          <Code block>{`curl ${API_BASE}/portfolio/my-agent`}</Code>
+        </Section>
+
+        <Section title="Symbols">
+          {[
+            ['PEAR', 'Pear Technologies',   'Medium'],
+            ['TSLA', 'TeslaCoil Motors',    'High'],
+            ['LBRY', 'Labyrinth Search',    'Low'],
+            ['RNFR', 'Rainforest Commerce', 'Medium'],
+            ['MHRD', 'Microhard Corp',      'Low'],
+          ].map(([sym, name, vol]) => (
+            <div key={sym} style={{
+              display: 'grid', gridTemplateColumns: '60px 1fr 80px',
+              padding: '8px 0', borderBottom: '1px solid var(--border)',
+              alignItems: 'center',
+            }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700, color: 'var(--green)' }}>{sym}</span>
+              <span style={{ color: 'var(--text-primary)', fontSize: 11 }}>{name}</span>
+              <span style={{
+                fontFamily: 'var(--font-mono)', fontSize: 8,
+                color: vol === 'High' ? 'var(--red)' : vol === 'Low' ? 'var(--text-muted)' : 'var(--amber)',
+                textAlign: 'right', textTransform: 'uppercase', letterSpacing: '0.1em',
+              }}>
+                {vol} vol
+              </span>
+            </div>
+          ))}
+        </Section>
+
+        <Section title="Participants & Client IDs">
+          {[
+            ['user',               'You â€” manual orders via this terminal or curl'],
+            ['bot-market-maker',   'Posts bid + ask around mid, skews with sentiment'],
+            ['bot-momentum',       'Trend follower using EMA crossover'],
+            ['bot-random',         'Noise trader â€” random side, size, price every tick'],
+            ['bot-mean-reversion', 'Fades RSI extremes back to VWAP'],
+            ['your-agent-id',      'Any string â€” your agent gets its own portfolio'],
+          ].map(([id, desc]) => (
+            <div key={id} style={{
+              display: 'grid', gridTemplateColumns: '180px 1fr',
+              padding: '8px 0', borderBottom: '1px solid var(--border)',
+              alignItems: 'flex-start',
+            }}>
+              <Code>{id}</Code>
+              <span style={{ color: 'var(--text-secondary)', fontSize: 11, paddingLeft: 8 }}>{desc}</span>
+            </div>
+          ))}
+        </Section>
+
+        <div style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: 8,
+          color: 'var(--text-muted)',
+          textAlign: 'center',
+          paddingBottom: 40,
+          letterSpacing: '0.15em',
+          textTransform: 'uppercase',
+        }}>
+          Bot Street Terminal Â· MIT License Â· The World's Least Regulated Market
+        </div>
+      </div>
+    </div>
+  )
+}
+
