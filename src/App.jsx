@@ -10,6 +10,7 @@ import OrderPanel from './components/OrderPanel'
 import MarketStatus from './components/MarketStatus'
 import Docs from './pages/Docs'
 import { SYMBOLS } from './api/client'
+import TradeFeed from './components/TradeFeed'
 
 export default function App() {
   const [symbol, setSymbol] = useState('PEAR')
@@ -112,7 +113,7 @@ export default function App() {
             minWidth: 0,
             display: 'grid',
             gridTemplateColumns: '260px 1fr 280px',
-            gridTemplateRows: '1fr 180px',
+            gridTemplateRows: '1fr 180px 120px',
             gap: 3,
             padding: 3,
             overflow: 'hidden',
@@ -134,6 +135,11 @@ export default function App() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3, overflow: 'hidden', minHeight: 0 }}>
               <div style={{ flex: 1, minHeight: 0 }}><Leaderboard /></div>
               <div style={{ flexShrink: 0 }}><OrderPanel symbol={symbol} /></div>
+            </div>
+
+            {/* Row 3 — Trade feed spanning all columns */}
+            <div style={{ gridColumn: '1 / -1', minHeight: 0 }}>
+              <TradeFeed />
             </div>
           </div>
         )}
