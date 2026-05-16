@@ -11,6 +11,16 @@ const SHORT = {
 
 const RANK_COLORS = ['var(--amber)', 'var(--text-secondary)', '#cd7f32']
 
+function formatPnl(val) {
+  const abs = Math.abs(val)
+  const sign = val >= 0 ? '+' : '-'
+  if (abs >= 1e12) return sign + (abs / 1e12).toFixed(1) + 'T'
+  if (abs >= 1e9)  return sign + (abs / 1e9).toFixed(1)  + 'B'
+  if (abs >= 1e6)  return sign + (abs / 1e6).toFixed(1)  + 'M'
+  if (abs >= 1e3)  return sign + (abs / 1e3).toFixed(1)  + 'K'
+  return (val >= 0 ? '+' : '') + val.toFixed(2)
+}
+
 export default function Leaderboard() {
   const { data, loading } = usePolling(getLeaderboard, 3000)
   const user = data?.find(r => r.client_id === 'user')
@@ -25,12 +35,12 @@ export default function Leaderboard() {
       {/* Headers */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: '20px 1fr 72px 44px',
+        gridTemplateColumns: '20px 1fr 64px 44px',
         gap: 4,
         padding: '4px 12px',
         borderBottom: '1px solid var(--border)',
       }}>
-        {['#', 'PARTICIPANT', 'TOTAL P&L', 'SHARPE'].map((h, i) => (
+        {['#', 'PARTICIPANT', 'P&L', 'SHARPE'].map((h, i) => (
           <span key={h} style={{
             fontFamily: 'var(--font-mono)', fontSize: 8,
             color: 'var(--text-muted)', letterSpacing: '0.1em',
@@ -47,24 +57,22 @@ export default function Leaderboard() {
             ))}
           </div>
         ) : data.map((r, i) => {
-          const pnl = r.total_pnl
-          const pos = pnl > 0
-          const neg = pnl < 0
+          const pnl    = r.total_pnl
+          const pos    = pnl > 0
+          const neg    = pnl < 0
           const isUser = r.client_id === 'user'
 
           return (
             <div key={r.client_id} style={{
               display: 'grid',
-              gridTemplateColumns: '20px 1fr 72px 44px',
+              gridTemplateColumns: '20px 1fr 64px 44px',
               gap: 4,
               padding: '7px 12px',
               alignItems: 'center',
               background: isUser ? 'rgba(0,230,118,0.04)' : 'transparent',
               borderLeft: isUser ? '2px solid var(--green)' : '2px solid transparent',
               borderBottom: '1px solid var(--border)',
-              transition: 'background 0.2s',
             }}>
-              {/* Rank */}
               <span style={{
                 fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
                 color: RANK_COLORS[i] ?? 'var(--text-muted)',
@@ -72,7 +80,6 @@ export default function Leaderboard() {
                 {i + 1}
               </span>
 
-              {/* Name */}
               <div>
                 <div style={{
                   fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: isUser ? 700 : 500,
@@ -88,17 +95,15 @@ export default function Leaderboard() {
                 )}
               </div>
 
-              {/* P&L */}
               <div style={{ textAlign: 'right' }}>
                 <span style={{
                   fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700,
                   color: pos ? 'var(--green)' : neg ? 'var(--red)' : 'var(--amber)',
                 }}>
-                  {pos ? '+' : ''}{pnl.toFixed(2)}
+                  {formatPnl(pnl)}
                 </span>
               </div>
 
-              {/* Sharpe */}
               <div style={{
                 textAlign: 'right',
                 fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)',
