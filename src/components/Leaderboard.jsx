@@ -10,15 +10,23 @@ const SHORT = {
 }
 
 const RANK_COLORS = ['var(--amber)', 'var(--text-secondary)', '#cd7f32']
-const COMPACT_NUMBER = new Intl.NumberFormat('en-US', {
-  notation: 'compact',
-  compactDisplay: 'short',
-  maximumFractionDigits: 1,
-})
+const MAGNITUDE_SUFFIXES = [
+  { value: 1e18, suffix: 'Qi' },
+  { value: 1e15, suffix: 'Q' },
+  { value: 1e12, suffix: 'T' },
+  { value: 1e9, suffix: 'B' },
+  { value: 1e6, suffix: 'M' },
+  { value: 1e3, suffix: 'K' },
+]
 
 function toFiniteNumber(value) {
   const numeric = typeof value === 'number' ? value : Number(value)
   return Number.isFinite(numeric) ? numeric : null
+}
+
+function formatScaled(value) {
+  const digits = value >= 100 ? 0 : value >= 10 ? 1 : 2
+  return value.toFixed(digits).replace(/\.0+$|(\.\d*[1-9])0+$/, '$1')
 }
 
 function formatPnl(value) {
@@ -27,7 +35,12 @@ function formatPnl(value) {
 
   const abs = Math.abs(numeric)
   if (abs < 0.005) return '0.00'
-  if (abs >= 1000) return `${numeric >= 0 ? '+' : '-'}${COMPACT_NUMBER.format(abs)}`
+  if (abs >= 1e21) return `${numeric >= 0 ? '+' : '-'}${abs.toExponential(2)}`
+
+  const magnitude = MAGNITUDE_SUFFIXES.find((item) => abs >= item.value)
+  if (magnitude) {
+    return `${numeric >= 0 ? '+' : '-'}${formatScaled(abs / magnitude.value)}${magnitude.suffix}`
+  }
 
   return `${numeric >= 0 ? '+' : ''}${numeric.toFixed(2)}`
 }
@@ -55,7 +68,7 @@ export default function Leaderboard() {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '34px 1fr 92px 68px',
+          gridTemplateColumns: '34px minmax(0, 1fr) 124px 68px',
           gap: 10,
           padding: '10px 14px',
           borderBottom: '1px solid var(--border)',
@@ -97,7 +110,7 @@ export default function Leaderboard() {
               key={row.client_id}
               style={{
                 display: 'grid',
-                gridTemplateColumns: '34px 1fr 92px 68px',
+                gridTemplateColumns: '34px minmax(0, 1fr) 124px 68px',
                 gap: 10,
                 padding: '12px 14px',
                 alignItems: 'center',
@@ -140,6 +153,7 @@ export default function Leaderboard() {
                   fontWeight: 700,
                   color: pnlColor,
                   textAlign: 'right',
+                  whiteSpace: 'nowrap',
                 }}
               >
                 {formatPnl(row.total_pnl)}
