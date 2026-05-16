@@ -27,11 +27,10 @@ export default function App() {
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg-void)' }}>
       <div className="scanlines" />
 
-      {/* Vertical sidebar */}
       <Sidebar page={page} onPage={setPage} />
 
-      {/* Main content */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
+      {/* Main content — minHeight:0 prevents flex children overflowing 100vh */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0, minWidth: 0 }}>
 
         {/* Header */}
         <header style={{
@@ -45,7 +44,6 @@ export default function App() {
           flexShrink: 0,
           gap: 16,
         }}>
-          {/* Logo */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{
               width: 28, height: 28,
@@ -69,7 +67,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* Symbol tabs */}
           {page === 'terminal' && (
             <div style={{ display: 'flex', gap: 2, flex: 1, justifyContent: 'center' }}>
               {SYMBOLS.map(s => {
@@ -96,7 +93,6 @@ export default function App() {
             </div>
           )}
 
-          {/* Right: clock + status */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>
               {utc} UTC
@@ -105,13 +101,15 @@ export default function App() {
           </div>
         </header>
 
-        {/* Ticker strip */}
         <Ticker symbol={symbol} onSelect={setSymbol} />
 
-        {/* Page content */}
         {page === 'docs' ? <Docs /> : (
+          /* minHeight:0 is the key fix — grid inside a flex column won't shrink
+             below its content size without it, causing overflow below the viewport */
           <div style={{
             flex: 1,
+            minHeight: 0,
+            minWidth: 0,
             display: 'grid',
             gridTemplateColumns: '260px 1fr 280px',
             gridTemplateRows: '1fr 180px',
@@ -120,21 +118,21 @@ export default function App() {
             overflow: 'hidden',
             background: 'var(--bg-void)',
           }}>
-            {/* Col 1: OrderBook + Sentiment */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, overflow: 'hidden' }}>
-              <div style={{ flex: 3 }}><OrderBook symbol={symbol} /></div>
-              <div style={{ flex: 2 }}><SentimentGauge symbol={symbol} /></div>
+            {/* Col 1 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, overflow: 'hidden', minHeight: 0 }}>
+              <div style={{ flex: 3, minHeight: 0 }}><OrderBook symbol={symbol} /></div>
+              <div style={{ flex: 2, minHeight: 0 }}><SentimentGauge symbol={symbol} /></div>
             </div>
 
-            {/* Col 2: Chart + Indicators */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, overflow: 'hidden' }}>
-              <div style={{ flex: 1 }}><CandleChart symbol={symbol} /></div>
+            {/* Col 2 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, overflow: 'hidden', minHeight: 0 }}>
+              <div style={{ flex: 1, minHeight: 0 }}><CandleChart symbol={symbol} /></div>
               <div style={{ flexShrink: 0 }}><Indicators symbol={symbol} /></div>
             </div>
 
-            {/* Col 3: Leaderboard + OrderPanel */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, overflow: 'hidden' }}>
-              <div style={{ flex: 1 }}><Leaderboard /></div>
+            {/* Col 3 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, overflow: 'hidden', minHeight: 0 }}>
+              <div style={{ flex: 1, minHeight: 0 }}><Leaderboard /></div>
               <div style={{ flexShrink: 0 }}><OrderPanel symbol={symbol} /></div>
             </div>
           </div>
