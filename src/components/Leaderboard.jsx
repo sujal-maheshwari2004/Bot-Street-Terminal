@@ -10,17 +10,33 @@ const SHORT = {
 }
 
 const RANK_COLORS = ['var(--amber)', 'var(--text-secondary)', '#cd7f32']
+const COMPACT_NUMBER = new Intl.NumberFormat('en-US', {
+  notation: 'compact',
+  compactDisplay: 'short',
+  maximumFractionDigits: 1,
+})
+
+function toFiniteNumber(value) {
+  const numeric = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(numeric) ? numeric : null
+}
 
 function formatPnl(value) {
-  const abs = Math.abs(value)
-  const sign = value >= 0 ? '+' : '-'
+  const numeric = toFiniteNumber(value)
+  if (numeric == null) return '--'
 
-  if (abs >= 1e12) return `${sign}${(abs / 1e12).toFixed(1)}T`
-  if (abs >= 1e9) return `${sign}${(abs / 1e9).toFixed(1)}B`
-  if (abs >= 1e6) return `${sign}${(abs / 1e6).toFixed(1)}M`
-  if (abs >= 1e3) return `${sign}${(abs / 1e3).toFixed(1)}K`
+  const abs = Math.abs(numeric)
+  if (abs < 0.005) return '0.00'
+  if (abs >= 1000) return `${numeric >= 0 ? '+' : '-'}${COMPACT_NUMBER.format(abs)}`
 
-  return `${value >= 0 ? '+' : ''}${value.toFixed(2)}`
+  return `${numeric >= 0 ? '+' : ''}${numeric.toFixed(2)}`
+}
+
+function formatSharpe(value) {
+  const numeric = toFiniteNumber(value)
+  if (numeric == null) return '--'
+  if (Math.abs(numeric) < 0.005) return '0.00'
+  return numeric.toFixed(2)
 }
 
 export default function Leaderboard() {
@@ -72,7 +88,7 @@ export default function Leaderboard() {
             ))}
           </div>
         ) : data.map((row, index) => {
-          const pnl = row.total_pnl
+          const pnl = toFiniteNumber(row.total_pnl)
           const isUser = row.client_id === 'user'
           const pnlColor = pnl > 0 ? 'var(--green)' : pnl < 0 ? 'var(--red)' : 'var(--amber)'
 
@@ -126,7 +142,7 @@ export default function Leaderboard() {
                   textAlign: 'right',
                 }}
               >
-                {formatPnl(pnl)}
+                {formatPnl(row.total_pnl)}
               </span>
 
               <span
@@ -137,7 +153,7 @@ export default function Leaderboard() {
                   textAlign: 'right',
                 }}
               >
-                {row.sharpe != null ? row.sharpe.toFixed(2) : '--'}
+                {formatSharpe(row.sharpe)}
               </span>
             </div>
           )
@@ -175,7 +191,12 @@ export default function Leaderboard() {
               color: 'var(--green)',
             }}
           >
-            ${user.cash?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {(() => {
+              const cash = toFiniteNumber(user.cash)
+              return cash == null
+                ? '--'
+                : `$${cash.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+            })()}
           </span>
         </div>
       )}
